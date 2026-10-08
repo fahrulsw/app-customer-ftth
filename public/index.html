@@ -3777,9 +3777,38 @@ tr:hover td,body.light tr:hover td{background:var(--surface2)}
         zoomControl: true,
         preferCanvas: true // render polyline pakai canvas, lebih ringan dari SVG saat banyak garis
       }).setView([-2.5, 118], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap', maxZoom: 19
-      }).addTo(leafletMap);
+      // ===== Pilihan layer dasar: Satelit / Peta Biasa =====
+      const petaBiasa = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19
+      });
+
+      const satelit = L.layerGroup([
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+          maxNativeZoom: 18,
+          maxZoom: 19
+        }),
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png?key=cb1_4dvk_1_6bb0500b384d17f00132a551', {
+          attribution: '&copy; OpenStreetMap &copy; CARTO',
+          subdomains: 'abcd',
+          maxZoom: 19
+        })
+      ]);
+
+      let savedBase = 'satelit';
+      try { savedBase = localStorage.getItem('map_base') || 'satelit'; } catch (e) {}
+      (savedBase === 'biasa' ? petaBiasa : satelit).addTo(leafletMap);
+
+      L.control.layers(
+        { 'Satelit': satelit, 'Peta Biasa': petaBiasa },
+        null,
+        { position: 'topright', collapsed: true }
+      ).addTo(leafletMap);
+
+      leafletMap.on('baselayerchange', e => {
+        try { localStorage.setItem('map_base', e.name === 'Peta Biasa' ? 'biasa' : 'satelit'); } catch (err) {}
+      });
 
       mapLayers.odc = L.layerGroup().addTo(leafletMap);
       // ODP & Pelanggan di-cluster karena jumlahnya bisa ribuan
@@ -3866,7 +3895,7 @@ tr:hover td,body.light tr:hover td{background:var(--surface2)}
     }
     kabelLines.forEach(([from, to, color, weight]) => {
       L.polyline([from, to], {
-        color, weight, opacity: 0.75, dashArray: '6,6',
+        color, weight, opacity: 0.95, dashArray: '6,6',
         renderer: kabelRenderer,
         className: 'kabel-animated'
       }).addTo(mapLayers.kabel);
@@ -4587,7 +4616,7 @@ tr:hover td,body.light tr:hover td{background:var(--surface2)}
     if (btn) btn.classList.add('active');
     // Show/hide FAB (not for dashboard, and not for teknisi)
     const fab = document.getElementById('fab-btn');
-    fab.style.display = (page !== 'dashboard' && canCRUD()) ? 'flex' : 'none';
+    fab.style.display = (page !== 'dashboard' && page !== 'peta' && canCRUD()) ? 'flex' : 'none';
   }
 
   function fabAction() {
